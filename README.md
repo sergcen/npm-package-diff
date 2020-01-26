@@ -1,4 +1,4 @@
-# NPM package diff
+# NPM package diff (pkdiff)
 
 Package to show diff between package versions.
 

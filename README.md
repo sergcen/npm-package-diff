@@ -3,7 +3,7 @@
 Package to show diff between package versions.
 
 Requirements:
-GNU diffutils (diff) >= 3.4
+GNU diffutils (diff)
 
 Usage:
 

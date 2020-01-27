@@ -9,7 +9,7 @@ Usage:
 
 `npm install -g pkdiff`
 
-`pkdiff <new-package> <old-pacakge>`
+`pkdiff <new-package> <old-package>`
 
 ### Basic examples:
 

@@ -23,8 +23,8 @@ const execDiff = async ({ dir1, dir2, exclude, toStdOut = false }) => {
                 '--new-file',
                 '--unified',
                 excludeParam,
-                dir1,
                 dir2,
+                dir1,
             ].join(' ') + ' || true',
         ],
         {

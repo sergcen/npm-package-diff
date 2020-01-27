@@ -145,9 +145,10 @@ const unpack = async (tar, sessionDir) => {
  *
  * @param {string} package1
  * @param {string} package2
- * @param {boolean} full
- * @param {string} exclude
- * @param {boolean} toStdOut
+ * @param {Object} options - comparison options
+ * @param {boolean} options.full=true
+ * @param {string} options.exclude
+ * @param {boolean} options.toStdOut
  *
  * @returns {Promise<boolean|string|undefined>}
  */

@@ -65,10 +65,11 @@ const {
 /**
  * @param {string} package1 - new package
  * @param {string} package2 - old package (can be as version or tag)
- * @param {boolean} full=true - flag for full check, 
+ * @param {Object} options - comparison options
+ * @param {boolean} options.full=true - flag for full check, 
    if "false" compare function will stop on first diff and returns boolean (package equals: true or has diff: false)
- * @param {string} exclude - exclude glob for unix "diff"
- * @param {boolean} toStdOut - all diff output to stdOut
+ * @param {string} options.exclude - exclude glob for unix "diff"
+ * @param {boolean} options.toStdOut - all diff output to stdOut
  *
  * @returns {Promise<boolean|string|undefined>}
 */

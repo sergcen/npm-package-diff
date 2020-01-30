@@ -21,11 +21,14 @@ program
     .option('-o, --output [path]', 'output destination', false)
     .option('-c, --no-exit-code', 'returns code 0 if found differences')
     .option('-q, --quite', 'turn off actions log', false)
+    .option('--registry', 'npm registry')
+    .option('--prefer-offline', 'npm --prefer-offline option', true)
     .option(
         '--fast-check',
         'will try to find first diff and return result',
         false,
     )
+    .version(pkg.version, '-v, --version')
     .action(
         async (
             pkg1,
@@ -37,6 +40,8 @@ program
                 format,
                 noExitCode,
                 quite,
+                registry,
+                preferOffline
             },
         ) => {
             log.quite = quite;
@@ -55,6 +60,8 @@ program
                 full: !fastCheck,
                 // diff pipes to stdout if doesn't exists "output" option
                 toStdOut: format === 'diff' && !outputFilepath,
+                registry,
+                preferOffline
             }).catch(e => {
                 console.error(e);
                 process.exit(2);

@@ -44,3 +44,26 @@ test('equals tgz files as fast check', async () => {
 
     expect(result).toBe(true);
 });
+
+test('diff tgz files as fast check with hooks', async () => {
+    let total = 0;
+    let failed = '';
+
+    const beforeAll = (list) => {
+        total = list.length;
+    };
+    const afterFail = ([path1, path2]) => {
+        failed = path2.slice(-9); // 'pgk1.json'
+
+        return path1.includes('help.md');
+    };
+
+    await compareJSON(
+        './tests/fixtures/pkg1.tgz',
+        './tests/fixtures/pkg2.tgz',
+        { full: false, hooks: { beforeAll, afterFail } }
+    );
+
+    expect(total).toBe(3);
+    expect(failed).toBe('pkg1.json');
+});

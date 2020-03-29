@@ -60,23 +60,32 @@ const execFastDiff = async args => {
         { input },
     );
 
-    let result = false;
+    let result = {
+        hasDiff: true
+    };
     try {
         await cmd;
 
-        result = true;
+        result.hasDiff = false;
     } catch (e) {
-        const { stdout, stderr } = e;
-        const start = stdout.indexOf(dir1);
+        const { stdout } = e;
+        // last line in stdout is filepath with diff
+        const start = stdout.lastIndexOf(dir1);
         const end = stdout.indexOf(' ', start);
         const filepath = stdout.slice(start, end);
         const failedItemIndex = list.findIndex(([path1]) => path1 === filepath);
 
-        if (hooks.afterFail && (await hooks.afterFail(list[failedItemIndex])) === true) {
-            result = await execFastDiff({
-                ...args,
-                list: list.slice(failedItemIndex + 1),
-            });
+        if (hooks.afterFail) {
+            const hookResult = await hooks.afterFail(list[failedItemIndex]);
+            // expected object { hasDiff: boolean }
+            if (hookResult && hookResult.hasDiff === false) {
+                // if hook function decided skip this file
+                // continue from skipped
+                result = await execFastDiff({
+                    ...args,
+                    list: list.slice(failedItemIndex + 1),
+                });
+            }
         }
     }
 
@@ -132,6 +141,12 @@ const listDiff = (list1, list2) => {
     };
 };
 
+const getRegistry = async () => {
+    const { stdout } = await execa('npm', ['config', 'get', 'registry']);
+
+    return stdout.trim();
+};
+
 const getPackageTarPath = async ({
     pkg,
     downloadPath,
@@ -171,7 +186,11 @@ const getPackageTarPath = async ({
     const result = await exec(
         `npm pack ${fetchName} ${extendNpmArgs.join(' ')}`,
         { cwd: downloadPath },
-    );
+    ).catch(() => {
+        throw Error(
+            `Download failed: ${fetchName} from registry: ${options.registry}`,
+        );
+    });
     log(`${fetchName}: done`, 'timeEnd');
 
     const filename = result.split(os.EOL).slice(-1)[0];
@@ -205,6 +224,10 @@ const compare = async (package1, package2, options = {}) => {
     const sessionDir = await getSessionDir(package1, package2);
     const downloadPath = await makeTempDir(sessionDir, 'download');
 
+    if (!options.registry) {
+        options.registry = await getRegistry();
+    }
+
     const [path1, path2] = await Promise.all([
         getPackageTarPath({
             pkg: package1,
@@ -237,7 +260,7 @@ const compare = async (package1, package2, options = {}) => {
         unpackedDir1,
         unpackedDir2,
         fileList1,
-        fileList2
+        fileList2,
     );
 
     let result;
@@ -250,10 +273,6 @@ const compare = async (package1, package2, options = {}) => {
             options,
         });
     } else {
-        if (hooks.beforeAll && (await hooks.beforeAll(compareFileList)) === false) {
-            return false;
-        }
-
         result = execFastDiff({
             dir1: unpackedDir1,
             list: compareFileList,

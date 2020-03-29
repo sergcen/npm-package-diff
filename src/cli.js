@@ -21,7 +21,7 @@ program
     .option('-o, --output [path]', 'output destination', false)
     .option('-c, --no-exit-code', 'returns code 0 if found differences')
     .option('-q, --quite', 'turn off actions log', false)
-    .option('--registry', 'npm registry')
+    .option('--registry [url]', 'npm registry')
     .option('--prefer-offline', 'npm --prefer-offline option', true)
     .option(
         '--fast-check',
@@ -41,7 +41,7 @@ program
                 noExitCode,
                 quite,
                 registry,
-                preferOffline
+                preferOffline,
             },
         ) => {
             log.quite = quite;
@@ -61,7 +61,7 @@ program
                 // diff pipes to stdout if doesn't exists "output" option
                 toStdOut: format === 'diff' && !outputFilepath,
                 registry,
-                preferOffline
+                preferOffline,
             }).catch(e => {
                 console.error(e);
                 process.exit(2);

@@ -30,9 +30,7 @@
     "dependencies": {
         "commander": "4.1.0",
         "diff2html": "3.0.0-master.128204d",
-        "diff2html-cli": "4.2.1",
         "execa": "1.0.0",
-        "micromatch": "4.0.2",
         "npm-package-arg": "8.0.0",
         "open": "7.0.0",
         "prettier": "1.19.1",

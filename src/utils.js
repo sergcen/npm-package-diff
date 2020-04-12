@@ -22,6 +22,17 @@ const outJSON = diffOutput => {
     return JSON.stringify(toJSON(diffOutput), null, 4);
 };
 
+/**
+ *
+ * @param {string} msg
+ * @param {string} type=[^log|time|timeEnd]
+ */
+const log = (msg, type = 'log') => {
+    log.quite === false && console[type](msg);
+};
+
+log.quite = true;
+
 const outHtml = diffOutput => {
     const diffJson = toJSON(diffOutput);
     const content = Diff2html.html(diffJson, { drawFileList: true });
@@ -45,9 +56,7 @@ const saveToFile = (filepath, content) => {
     const resultPath = path.resolve(filepath);
     fs.writeFileSync(resultPath, content);
 
-    console.log(
-        `Saved to: \n path: ${resultPath}\n uri: file:///${resultPath}`,
-    );
+    log(`Saved to: \n path: ${resultPath}\n uri: file:///${resultPath}`);
 
     return resultPath;
 };
@@ -69,15 +78,6 @@ const makeTempDir = (sessionDir, suffix) => {
     return mkdtemp(path.join(sessionDir, suffix)).catch(e => {
         log(e);
     });
-};
-
-/**
- *
- * @param {string} msg
- * @param {string} type=[^log|time|timeEnd]
- */
-const log = (msg, type = 'log') => {
-    !log.quite && console[type](msg);
 };
 
 /**

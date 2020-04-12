@@ -3,23 +3,27 @@
 Package to show diff between package versions.
 
 Requirements:
-GNU diffutils (diff)
+- node > 8.6.0
+- GNU diffutils (diff)
+- xargs
 
 Usage:
 
 `npm install -g pkdiff`
 
-`pkdiff <new-package> <old-package>`
+`pkdiff <new-version> <old-version>`
 
 ### Basic examples:
 
 show diff in browser:
 
-`npx pkdiff react@latest 16.11.0` (name can be without tag `latest`)
+`npx pkdiff react 16.11.0`
+
+`npx pkdiff react@next 16.11.0`
 
 diff as JSON:
 
-`npx pkdiff react@16.12.0 16.11.0 --format=json > diff.json`
+`npx pkdiff react@16.12.0 16.11.0 --quite --format=json > diff.json`
 
 diff as unix Diff:
 
@@ -27,7 +31,7 @@ diff as unix Diff:
 
 exclude files from diff:
 
-`npx pkdiff react@latest 16.11.0 --exclude='*.json'`
+`npx pkdiff react@latest 16.11.0 --exclude='\.json$'`
 
 ### Compare local packed packages:
 
@@ -42,23 +46,26 @@ exclude files from diff:
 
 #### Options
 
--   `-x, --exclude [glob]` - exclude files to diff (unix diff exclude)
+-   `-x, --exclude [string]` - exclude files (JS RegExp)
 -   `-f, --format [diff|json|html]` - output format (default: "html")
 -   `-o, --output [path]` - output destination (default: false)
 -   `-c, --no-exit-code` - returns code 0 if found differences
 -   `-q, --quite` - turn off actions log (default: false)
 -   `--fast-check` - will try to find diff in any file and return result (default: false)
+-   `--registry [string]` - npm registry url
+-   `--prefer` - will try to find diff in any file and return result (default: false)
 -   `-h, --help` - output usage information
 
 
 ### JS API
 ```js
-const { 
-    // result as JSON
-    compareJSON,
+const {
+    hasDiff,
     // result as "unix diff" string
-    compare,
     // if you don't logs set it to false
+    compare,
+    // diff as json
+    compareJSON,
     setLogQuite
 } = require('pkdiff');
 
@@ -66,19 +73,44 @@ const {
  * @param {string} package1 - new package
  * @param {string} package2 - old package (can be as version or tag)
  * @param {Object} options - comparison options
- * @param {boolean} options.full=true - flag for full check, 
+ * @param {boolean} options.full=true - flag for full check,
    if "false" compare function will stop on first diff and returns boolean (package equals: true or has diff: false)
- * @param {string} options.exclude - exclude glob for unix "diff"
+ * @param {function} options.validate - call validate diff function if found diff
+ * @param {string|RegExp} options.exclude - JS RegExp
  * @param {boolean} options.toStdOut - all diff output to stdOut
  *
  * @returns {Promise<boolean|string|undefined>}
 */
 
 
-//examples
-const hasDiff = compare('pkg1@1.0.0', '0.9.0', { full: false });
+// check diff between package versions
+const result = hasDiff('react', '16.8.0', { exclude: 'package\\.json$' });
+const result = hasDiff('react', '16.8.0', { exclude: '\\.(md|json)$' });
+
+// with validate function
+const result = hasDiff('pkg1@1.0.0', '0.9.0', {
+  // will call validate function after found diff in this file
+  validate: (newVersionFilePath, oldVersionFilePath) => {
+    if (newVersionFilePath.include('/package.json')) {
+      const newPkgJSON = require(newVersionFilePath);
+      const oldPkgJSON = require(oldVersionFilepath);
+
+      return assert.deepEqual(newPkgJSON.dependecies, oldPkgJSON.dependecies);
+    }
+
+    // if isn't package.json
+    return false;
+  }
+});
+
+// get diff as JSON
 const diffJSON = compareJSON('pkg1@1.0.0', '0.9.0');
 
-const changedFiles = diffJSON.map(...)
+const changedFiles = diffJSON.map(fileDiff => {
+  return {
+    newVersion: fileDiff.newName,
+    oldVersion: fileDiff.oldName
+  }
+})
 
 ```

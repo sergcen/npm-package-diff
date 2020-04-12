@@ -19,8 +19,9 @@ program
     .option('-x, --exclude [glob]', 'exclude files to diff (unix diff exclude)')
     .option('-f, --format [diff|json|html]', 'output format', 'html')
     .option('-o, --output [path]', 'output destination', false)
-    .option('-c, --no-exit-code', 'returns code 0 if found differences')
+    .option('-c, --no-exit-code', 'returns code 0 if found differences', false)
     .option('-q, --quite', 'turn off actions log', false)
+    .option('--no-open', 'no open in browser', false)
     .option('--registry [url]', 'npm registry')
     .option('--prefer-offline', 'npm --prefer-offline option', true)
     .option(
@@ -31,23 +32,24 @@ program
     .version(pkg.version, '-v, --version')
     .action(
         async (
-            pkg1,
-            pkg2,
+            newPkg,
+            oldPkg,
             {
                 exclude,
                 fastCheck,
                 output: outputFilepath,
                 format,
-                noExitCode,
+                exitCode,
                 quite,
                 registry,
                 preferOffline,
-            },
+                open: openInBrowser
+            }
         ) => {
             log.quite = quite;
 
             if (!outputFilepath && format === 'html') {
-                const sessionDir = await getSessionDir(pkg1, pkg2);
+                const sessionDir = await getSessionDir(newPkg, oldPkg);
 
                 outputFilepath = path.join(
                     await makeTempDir(sessionDir, 'report'),
@@ -55,7 +57,7 @@ program
                 );
             }
 
-            const diffOutput = await compare(pkg1, pkg2, {
+            const diffOutput = await compare(newPkg, oldPkg, {
                 exclude,
                 full: !fastCheck,
                 // diff pipes to stdout if doesn't exists "output" option
@@ -67,20 +69,21 @@ program
                 process.exit(2);
             });
 
-            if (fastCheck) {
-                log(
-                    !diffOutput
-                        ? 'Packages are different'
-                        : 'Packages are equal',
-                );
-            }
+            const hasDiff = fastCheck ? !diffOutput : Boolean(diffOutput);
+
+            log(
+                hasDiff
+                    ? 'Packages are different'
+                    : 'Packages are equal',
+            );
+
             if (!fastCheck) {
                 const formattedDiff = formatOutput(diffOutput, format);
 
                 if (outputFilepath) {
                     const savedPath = saveToFile(outputFilepath, formattedDiff);
 
-                    if (format === 'html') {
+                    if (hasDiff && format === 'html' && openInBrowser) {
                         await open(savedPath);
                     }
                 } else {
@@ -89,7 +92,7 @@ program
                 }
             }
 
-            !noExitCode && process.exit(!diffOutput ? 1 : 0);
+            exitCode && process.exit(hasDiff ? 1 : 0);
         },
     );
 

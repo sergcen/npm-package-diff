@@ -2,7 +2,6 @@ const path = require('path');
 const os = require('os');
 const execa = require('execa');
 const fs = require('fs');
-const micromatch = require('micromatch');
 const { promisify } = require('util');
 
 const fsStat = promisify(fs.stat);
@@ -10,28 +9,25 @@ const npa = require('npm-package-arg');
 
 const { log, makeTempDir, getSessionDir } = require('./utils');
 
-const execDiff = async ({ dir1, dir2, exclude, toStdOut = false }) => {
-    const excludeParam = exclude ? '--exclude=' + exclude : '';
+const execDiff = async ({ list, toStdOut = false }) => {
+    const input = list.map(p => p.join(' ')).join(' ');
+    const cpuCount = os.cpus().length;
 
-    const res = execa(
-        'bash',
+    const cmd = execa(
+        'xargs',
         [
+            '-n2',
+            `-P ${cpuCount}`,
+            'sh',
             '-c',
-            [
-                'diff',
-                '-r',
-                '--new-file',
-                '--unified',
-                excludeParam,
-                dir2,
-                dir1,
-            ].join(' ') + ' || true',
+            `diff --new-file --unified $0 $1 || exit 0`,
         ],
         {
             stdio: toStdOut ? 'inherit' : undefined,
+            input
         },
     );
-    const { stdout } = await res;
+    const { stdout } = await cmd;
 
     return stdout;
 };
@@ -40,45 +36,43 @@ const execFastDiff = async args => {
     const {
         dir1,
         list,
-        exclude,
-        options: { hooks = {} },
+        options: { validate },
     } = args;
 
     if (list.length === 0) return true;
 
     const input = list.map(p => p.join(' ')).join(' ');
 
-    const excludeParam = exclude ? '--exclude=' + exclude : '';
     const cmd = execa(
         'xargs',
         [
             '-n2',
             'sh',
             '-c',
-            `diff ${excludeParam} --new-file -q $0 $1 || exit 255`,
+            `diff --new-file -q $0 $1 || exit 255`,
         ],
         { input },
     );
+    // by default has diff
+    let result = false;
 
-    let result = {
-        hasDiff: true
-    };
     try {
         await cmd;
 
-        result.hasDiff = false;
+        result = true;
     } catch (e) {
         const { stdout } = e;
+
         // last line in stdout is filepath with diff
         const start = stdout.lastIndexOf(dir1);
         const end = stdout.indexOf(' ', start);
         const filepath = stdout.slice(start, end);
-        const failedItemIndex = list.findIndex(([path1]) => path1 === filepath);
+        const failedItemIndex = list.findIndex(([_, path2]) => path2 === filepath);
 
-        if (hooks.afterFail) {
-            const hookResult = await hooks.afterFail(list[failedItemIndex]);
-            // expected object { hasDiff: boolean }
-            if (hookResult && hookResult.hasDiff === false) {
+        if (validate) {
+            const validateResult = await validate(...list[failedItemIndex]);
+
+            if (validateResult) {
                 // if hook function decided skip this file
                 // continue from skipped
                 result = await execFastDiff({
@@ -115,7 +109,7 @@ const getFilesList = async (path, { exclude }) => {
         .sort();
 
     if (exclude) {
-        files = micromatch.not(files, exclude);
+        files = files.filter(file => !exclude.test(file));
     }
 
     return files;
@@ -208,8 +202,8 @@ const unpack = async (tar, sessionDir) => {
 
 /**
  *
- * @param {string} package1
- * @param {string} package2
+ * @param {string} newPkg
+ * @param {string} oldPkg
  * @param {Object} options - comparison options
  * @param {boolean} options.full=true
  * @param {string} options.exclude
@@ -217,67 +211,70 @@ const unpack = async (tar, sessionDir) => {
  *
  * @returns {Promise<boolean|string|undefined>}
  */
-const compare = async (package1, package2, options = {}) => {
-    const { full = true, exclude, toStdOut, hooks = {} } = options;
-    if (package1 === package2) {
-        throw Error(`${package1} and ${package2} are equal`);
+const compare = async (newPkg, oldPkg, options = {}) => {
+    const { full = true, exclude, toStdOut } = options;
+    if (newPkg === oldPkg) {
+        throw Error(`${newPkg} and ${oldPkg} are equal`);
     }
-    const sessionDir = await getSessionDir(package1, package2);
+    const sessionDir = await getSessionDir(newPkg, oldPkg);
     const downloadPath = await makeTempDir(sessionDir, 'download');
 
     if (!options.registry) {
         options.registry = await getRegistry();
     }
 
-    const [path1, path2] = await Promise.all([
+    const [newPkgPath, oldPkgPath] = await Promise.all([
         getPackageTarPath({
-            pkg: package1,
+            pkg: newPkg,
             downloadPath: downloadPath,
             options,
         }),
         getPackageTarPath({
-            pkg: package2,
+            pkg: oldPkg,
             downloadPath,
-            firstPackage: package1,
+            firstPackage: newPkg,
             options,
         }),
     ]);
 
+    const excludeRegExp = typeof exclude === 'string' ?
+        new RegExp(exclude) :
+        exclude;
+
     // compare file structure
-    const [fileList1, fileList2] = await Promise.all([
-        getFilesList(path1, { exclude }),
-        getFilesList(path2, { exclude }),
+    const [newPkgList, oldPkgList] = await Promise.all([
+        getFilesList(newPkgPath, { exclude: excludeRegExp }),
+        getFilesList(oldPkgPath, { exclude: excludeRegExp }),
     ]);
 
     log('comparing file structure...');
 
-    const unpackedDir1 = await unpack(path1, sessionDir);
-    const unpackedDir2 = await unpack(path2, sessionDir);
+    const unpackedNewDir1 = await unpack(newPkgPath, sessionDir);
+    const unpackedOldDir2 = await unpack(oldPkgPath, sessionDir);
 
     log('diffing content...');
     log('diffing content - done', 'time');
 
     const compareFileList = buildCompareFileList(
-        unpackedDir1,
-        unpackedDir2,
-        fileList1,
-        fileList2,
+        unpackedOldDir2,
+        unpackedNewDir1,
+        oldPkgList,
+        newPkgList,
     );
 
     let result;
     if (full) {
         result = execDiff({
-            dir1: unpackedDir1,
-            dir2: unpackedDir2,
-            exclude,
+            dir1: unpackedNewDir1,
+            dir2: unpackedOldDir2,
+            list: compareFileList,
             toStdOut,
             options,
         });
     } else {
         result = execFastDiff({
-            dir1: unpackedDir1,
+            dir1: unpackedNewDir1,
             list: compareFileList,
-            exclude,
             options,
         });
     }

@@ -1,6 +1,6 @@
 {
     "name": "pkdiff",
-    "version": "1.4.1",
+    "version": "2.0.0",
     "description": "Diff npm packages across versions, ex. `pkdiff react 16.11.0`",
     "main": "src/index.js",
     "bin": {

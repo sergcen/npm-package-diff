@@ -53,7 +53,7 @@ exclude files from diff:
 -   `-q, --quite` - turn off actions log (default: false)
 -   `--fast-check` - will try to find diff in any file and return result (default: false)
 -   `--registry [string]` - npm registry url
--   `--prefer` - will try to find diff in any file and return result (default: false)
+-   `--prefer-offline` - npm cli `preffer-offline`
 -   `-h, --help` - output usage information
 
 

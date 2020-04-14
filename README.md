@@ -1,6 +1,6 @@
 # NPM package diff (pkdiff)
-
-Package to show diff between package versions.
+Compare npm package releases and tarball.
+Show diff between package versions in browser or as unix diff output.
 
 Requirements:
 - node > 8.6.0

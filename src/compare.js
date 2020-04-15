@@ -23,6 +23,7 @@ const execDiff = async ({ list, toStdOut = false }) => {
             `diff --new-file --unified $0 $1 || exit 0`,
         ],
         {
+            maxBuffer: 200000000,
             stdio: toStdOut ? 'inherit' : undefined,
             input
         },
@@ -51,7 +52,10 @@ const execFastDiff = async args => {
             '-c',
             `diff --new-file -q $0 $1 || exit 255`,
         ],
-        { input },
+        {
+            maxBuffer: 200000000,
+            input
+        },
     );
     // by default has diff
     let result = false;

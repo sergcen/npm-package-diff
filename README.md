@@ -1,6 +1,6 @@
 # NPM package diff (pkdiff)
-
-Package to show diff between package versions.
+Compare npm package releases and tarball.
+Show diff between package versions in browser or as unix diff output.
 
 Requirements:
 - node > 8.6.0
@@ -53,7 +53,7 @@ exclude files from diff:
 -   `-q, --quite` - turn off actions log (default: false)
 -   `--fast-check` - will try to find diff in any file and return result (default: false)
 -   `--registry [string]` - npm registry url
--   `--prefer` - will try to find diff in any file and return result (default: false)
+-   `--prefer-offline` - npm cli `preffer-offline`
 -   `-h, --help` - output usage information
 
 
